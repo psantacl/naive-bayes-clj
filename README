@@ -1,17 +1,26 @@
 # bayesian-classifier
 
-FIXME: write description
+An agent based naive bayesian classifier supporting both traditional classification and Paul Graham's variant outlined in "A Plan for Spam"
 
 ## Usage
 
-FIXME: write
+make-classifier accepts N category names as keywords and returns a classifer agent:
+(def *health-sick-classifier* (make-classifier :health :sick))
+
+Next, you'll want to give it some training data:
+(send *health-sick-classifier* learn "fred" :sick)
+(send *health-sick-classifier* learn "juan" :healt)
+
+Finally, use one of the support methods to categorize new data:
+(p-of-class-given-token *health-sick-classifier* "betty")
+(p-of-class-given-token-graham *health-sick-classifier* "mary")
 
 ## Installation
 
-FIXME: write
+Typical leiningen project rules apply.
 
 ## License
 
-Copyright (C) 2010 FIXME
+Copyright (C) 2010 Do what thou wilt shall be the whole of the law.
 
 Distributed under the Eclipse Public License, the same as Clojure.
