@@ -16,26 +16,29 @@
   )
 
 
-(defn learn [st token class]
-  (let [modify-class
-        (fn [token class]
-          (let [target-class (get-in st [:classes class])]
-            {class {:observations
-                    (+ 1 (get target-class :observations))
+(defn learn [st token klass]
+  (let [modify-klass
+        (fn [token klass]
+          (let [target-klass (get-in st [:classes klass])]
+            {klass {:observations
+                    (+ 1 (get target-klass :observations))
                     :tokens
-                    (assoc (get target-class :tokens) token
-                           (+ 1 (get-in target-class [:tokens token] 0)))}}))
-        add-token-to-class
-        (fn [token class]
-          (let [old-classes (reduce (fn [accum k]
+                    (assoc (get target-klass :tokens) token
+                           (+ 1 (get-in target-klass [:tokens token] 0)))}}))
+        add-token-to-klass
+        (fn [token klass]
+          (let [old-klasses (reduce (fn [accum k]
                                       (assoc accum k (get-in st [:classes k])))
                                     {}
-                                    (filter (fn [some-key] (not (= some-key class)))
+                                    (filter (fn [some-key] (not (= some-key klass)))
                                             (keys (:classes st))))]
-            (merge old-classes
-                   (modify-class token class))))]
+            (merge old-klasses
+                   (modify-klass token klass))))]
+
     {:observations (+ 1 (get st :observations))
-     :classes (add-token-to-class token class)}))
+     :classes (add-token-to-klass token klass)}
+    ))
+
 
 (comment
   (doseq [a-token  ["paul" "stephanie" "steph" "kyle" "philip" "tom" "sarah" "fred"
@@ -47,10 +50,10 @@
     (printf "learning about %s\n" a-token )
     (send *name-addr-classifier* learn a-token :address))
 
+  (clear-agent-errors *name-addr-classifier*)
+
+  (send *name-addr-classifier* learn "betty" :fungus)
   (pp/pprint *name-addr-classifier*)
-
-  (p-of-class-given-token *health-sick-classifier* "+")
-
 
   )
 
@@ -132,7 +135,6 @@
       res
       (let [numer (p-of-class-and-token st token klass)
             denom (total-p-of-token st token)]
-        (printf "%f / %f\n" numer denom)
         (recur (merge res {klass
                            (if (zero? denom)
                              0.0
@@ -166,7 +168,6 @@
   (save-classifier *name-addr-classifier* "chicken.txt")
   (def *persisted-classifier* (load-classifier "chicken.txt"))
   (p-of-class-given-token *persisted-classifier* "steph")
-
   )
 
 (comment
@@ -183,6 +184,3 @@
   (pp/pprint *name-addr-classifier*)
   (clear-agent-errors *name-addr-classifier*)
   )
-
-
-

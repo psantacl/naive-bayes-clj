@@ -5,15 +5,23 @@ An agent based naive bayesian classifier supporting both traditional classificat
 ## Usage
 
 make-classifier accepts N category names as keywords and returns a classifer agent:
-(def *health-sick-classifier* (make-classifier :health :sick))
+(def *healthy-sick-classifier* (make-classifier :healthy :sick))
 
 Next, you'll want to give it some training data:
-(send *health-sick-classifier* learn "fred" :sick)
-(send *health-sick-classifier* learn "juan" :healt)
+(send *healthy-sick-classifier* learn "fred" :sick)
+(send *healthy-sick-classifier* learn "juan" :healthy)
 
-Finally, use one of the support methods to categorize new data:
-(p-of-class-given-token *health-sick-classifier* "betty")
-(p-of-class-given-token-graham *health-sick-classifier* "mary")
+Note that attempting to learn about a token in a undefined class will result in an agent error.  This is preferable to silently failing, I believe.
+Another possibility would be to allow users to generate new classes on the fly via the learn method but it is my belief that this approach
+is entirely too lenient on typos.
+
+Use one of the support methods to categorize new data:
+(p-of-class-given-token *healthy-sick-classifier* "betty")
+(p-of-class-given-token-graham *healthy-sick-classifier* "mary")
+
+Persisting trained classifiers is trivial:
+(save-classifier *healthy-sick-classifer* "chicken.txt")
+(load-classifier "chicken.txt")
 
 ## Installation
 
@@ -21,6 +29,5 @@ Typical leiningen project rules apply.
 
 ## License
 
-Copyright (C) 2010 Do what thou wilt shall be the whole of the law.
+Copyright (C) 2010 Do What Thou Wilt Shall Be The Whole Of The Law.
 
-Distributed under the Eclipse Public License, the same as Clojure.
