@@ -13,15 +13,8 @@
 
 (comment
   (def *name-addr-classifier* (make-classifier :name :address))
-  (def *health-sick-classifier* (make-classifier :health :sick))
   )
 
-(def *fun-map* (agent  {:observations 0
-                        :classes {:name    {:observations 0
-                                            :tokens {} }
-                                  :address {:observations 0
-                                            :tokens {} }
-                                  }}))
 
 (defn learn [st token class]
   (let [modify-class
@@ -54,21 +47,9 @@
     (printf "learning about %s\n" a-token )
     (send *name-addr-classifier* learn a-token :address))
 
-  (dotimes [_ 99]
-    (send *health-sick-classifier* learn "+" :sick))
-  (send *health-sick-classifier* learn "-" :sick)
-
-  (dotimes [_ 97902]
-    (send *health-sick-classifier* learn "-" :health))
-
-  (dotimes [_ 1998]
-    (send *health-sick-classifier* learn "+" :health))
-
-  (pp/pprint *health-sick-classifier*)
   (pp/pprint *name-addr-classifier*)
 
   (p-of-class-given-token *health-sick-classifier* "+")
-
 
 
   )
@@ -172,7 +153,24 @@
                klasses)))))
 
 
+(defn save-classifier [classifier file-name]
+  (ds/with-out-writer file-name
+    (binding [*print-dup* true]
+      (print @classifier))))
+
+
+(defn load-classifier [file-name]
+  (agent (load-file file-name)))
+
 (comment
+  (save-classifier *name-addr-classifier* "chicken.txt")
+  (def *persisted-classifier* (load-classifier "chicken.txt"))
+  (p-of-class-given-token *persisted-classifier* "steph")
+
+  )
+
+(comment
+  (p-of-class-given-token chicken "steph")
   (p-of-class-given-token *name-addr-classifier* "steph")
   (p-of-class-given-token *name-addr-classifier* "paul")
   (p-of-class-given-token *name-addr-classifier* "huge")
