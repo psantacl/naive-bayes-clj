@@ -1,6 +1,7 @@
 (ns bayesian-classifier.core
     (:require [clojure.contrib.duck-streams :as ds]
-            [clojure.contrib.pprint :as pp]))
+              [clojure.contrib.pprint :as pp]))
+
 
 (defn make-classifier [ & klasses]
   (agent {:observations 0
@@ -102,7 +103,7 @@
   )
 
 ;;;P(B1|A) = P(B1|A1) + P(B1|A2) + ...
-;;;From Graham
+;;;From Graham - ignores prior probablities of class or concept
 (defn  p-of-token-given-class-sum [st token]
      (reduce (fn [accum k]
                (+ accum (p-of-token-given-class st token k)))
@@ -184,5 +185,6 @@
   (pp/pprint *name-addr-classifier*)
   (clear-agent-errors *name-addr-classifier*)
   )
+
 
 
