@@ -1,4 +1,4 @@
-(ns bayesian-classifier.core2
+(ns bayesian-classifier.core
   (:require [clojure.contrib.duck-streams :as ds]
             [clojure.contrib.pprint :as pp]))
 
@@ -10,6 +10,21 @@
              {}
              klasses)})
 
+(defn get-state [st]
+  (cond (= (class st) clojure.lang.Agent)
+        @st
+
+        (= (class st) clojure.lang.Atom)
+        @st
+
+        :else
+        st))
+(comment
+ (get-state (agent 69))
+ (get-state (atom 69))
+ (get-state 69)
+ )
+
 (comment
   (def *first-last-name-classifier* (atom (make-classifier :first :last)))
   (def *first-last-name-classifier* (make-classifier :first :last))
@@ -19,13 +34,12 @@
 
 (defn base-learn [st token klass]
   (merge  (update-in (update-in st [:classes klass :tokens]
-                                (fn [m c] (assoc m token (+ 1 c)))
+                                (fn [m c] (assoc m token (inc c)))
                                 (get-in st [:classes klass :tokens token] 0))
                      [:classes klass]
-                     (fn [m c] (assoc m :observations (+ 1 c)))
+                     (fn [m c] (assoc m :observations (inc c)))
                      (get-in st [:classes klass :observations]))
-
-          {:observations (+ 1 (get st :observations))}))
+          {:observations (inc (get st :observations))}))
 
 (defn learn! [st token klass]
   (if-not (some #(= klass %1) (keys (get st :classes)))
@@ -66,10 +80,10 @@
 
 ;;;P(A1), P(A2), ...
 (defn p-of-class [st klass]
-  (let [total-observations (:observations st)]
+  (let [total-observations (:observations (get-state st))]
     (if (zero? total-observations)
       0
-      (double (/ (get-in st [:classes klass :observations])
+      (double (/ (get-in (get-state st) [:classes klass :observations])
                 total-observations)))))
 
 (comment
@@ -80,8 +94,8 @@
 
 ;;;P(B1|A1), P(B2|A1), ...
 (defn p-of-token-given-class [st token class]
-  (let [token-count        (get-in st [:classes class :tokens token] 0)
-        class-observations (get-in st [:classes class :observations]) ]
+  (let [token-count        (get-in (get-state st) [:classes class :tokens token] 0)
+        class-observations (get-in (get-state st) [:classes class :observations]) ]
     (if (zero? class-observations)
       0
       (double (/ token-count class-observations)))))
@@ -99,7 +113,7 @@
      (reduce (fn [accum k]
                (+ accum (p-of-token-given-class st token k)))
              0
-             (keys (:classes st))))
+             (keys (:classes (get-state st)))))
 
 
 (comment
@@ -126,7 +140,7 @@
             (+ accum
                (p-of-class-and-token st token klass)))
           0
-            (keys (:classes st))))
+            (keys (:classes (get-state st)))))
 
 (comment
   (total-p-of-token *first-last-name-classifier* "steph")
@@ -137,7 +151,7 @@
 ;;;P(A|B) = [ P(B|A) * P(A) ]/P(B)
 (defn p-of-class-given-token [st token]
   (loop [res {}
-         [klass & klasses] (keys (:classes st))]
+         [klass & klasses] (keys (:classes (get-state st)))]
     (if-not klass
       res
       (let [numer (p-of-class-and-token st token klass)
@@ -150,7 +164,7 @@
 
 (defn p-of-class-given-token-graham [st token]
   (loop [res {}
-         [klass & klasses] (keys (:classes st))]
+         [klass & klasses] (keys (:classes (get-state st)))]
     (if-not klass
       res
       (let [numer (p-of-token-given-class st token klass)
