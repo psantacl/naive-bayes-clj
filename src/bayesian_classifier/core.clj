@@ -205,8 +205,5 @@
   (p-of-class-given-token-graham *first-last-name-classifier* "paul")
   (p-of-class-given-token-graham *first-last-name-classifier* "smith")
 
-
   (pp/pprint *first-last-name-classifier*)
-  (clear-agent-errors *first-last-name-classifier*)
-
   )

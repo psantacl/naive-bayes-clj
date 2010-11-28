@@ -1,21 +1,26 @@
 # bayesian-classifier
 
-An agent based naive bayesian classifier supporting both traditional classification and Paul Graham's variant outlined in "A Plan for Spam"
+A naive bayesian classifier supporting both traditional classification and Paul Graham's variant outlined in "A Plan for Spam"
 
 ## Usage
 
-make-classifier accepts N category names as keywords and returns a classifer agent:
+make-classifier accepts N category names as keywords and returns a classifer:
 (def *healthy-sick-classifier* (make-classifier :healthy :sick))
 
-Next, you'll want to give it some training data:
-(send *healthy-sick-classifier* learn "fred" :sick)
-(send *healthy-sick-classifier* learn "juan" :healthy)
+If you wish to use agents or atoms for your concurrency mechanism then by all means, do this:
+(def *healthy-sick-classifier-atom* (atom (make-classifier :healthy :sick))
+(def *healthy-sick-classifier-agent* (agent (make-classifier :healthy :sick))
 
-Note that attempting to learn about a token in a undefined class will result in an agent error.  This is preferable to silently failing, I believe.
-Another possibility would be to allow users to generate new classes on the fly via the learn method but it is my belief that this approach
-is entirely too lenient on typos.
+Next, you'll want to give it some training data. learn! will throw an exception if you attempt to
+classify data into a concept/class that is currently not in the classifer.  learn will just roll with this
+and create the new concept/class on the fly.
 
-Use one of the support methods to categorize new data:
+(learn! *healthy-sick-classifier* "fred" :sick)
+(swap! learn! *healthy-sick-classifier* "fred" :sick)
+(send *healthy-sick-classifier-agent* learn! "fred" :first)
+
+Use one of the support methods to categorize new data. These classifications algo's utilize protocols
+to ensure type transparency.  They will work seemless with vanilla classifier maps, atoms or agents:
 (p-of-class-given-token *healthy-sick-classifier* "betty")
 (p-of-class-given-token-graham *healthy-sick-classifier* "mary")
 

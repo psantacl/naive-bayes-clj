@@ -74,11 +74,11 @@
   (let [new-classifier (atom (core/make-classifier :first :last))]
     (doseq [a-token  ["paul" "stephanie" "steph" "kyle" "philip" "tom" "sarah" "fred"
                       "albert" "sebastian" "steve" "smith" "mary" "vince" "bill" "ben"]]
-      (reset! new-classifier (core/learn! @new-classifier a-token :first)))
+      (swap! new-classifier core/learn! a-token :first))
 
     (doseq [a-token ["santa clara" "lesage" "burton" "smith" "smith" "smith" "shires"
                      "mead" "sheppard" "smagghe" "feng"]]
-      (reset! new-classifier (core/learn! @new-classifier a-token :last)))
+      (swap! new-classifier core/learn! a-token :last))
 
     (is (= (core/p-of-class-given-token new-classifier "paul")
            {:first 1.0, :last 0.0}))
@@ -120,13 +120,10 @@
     (is (= (core/p-of-class-given-token *persisted-classifier* "paul")
            {:first 1.0, :last 0.0}))
 
-    (pp/pprint (core/p-of-class-given-token *persisted-classifier* "smith"))
-
     (is (= (core/p-of-class-given-token *persisted-classifier* "smith")
            {:first 0.25, :last 0.7499999999999999})))
-  (shell/sh "rm" "chicken.txt")
+  (shell/sh "rm" "chicken.txt"))
 
-  )
 
 (comment
 
