@@ -1,6 +1,7 @@
 (ns bayesian-classifier.test.core
   (:require [bayesian-classifier.core :as core]
-            [clojure.contrib.pprint :as pp] :reload)
+            [clojure.contrib.pprint :as pp]
+            [clojure.contrib.shell  :as shell] :reload)
   (:use [clojure.test]))
 
 (defn create-classifier [f]
@@ -103,7 +104,29 @@
     (is (= (core/p-of-class-given-token new-classifier "smith")
            {:first 0.25, :last 0.7499999999999999}))))
 
+(deftest test-persist-classifier-string
+  (let [new-classifier (agent (core/make-classifier :first :last))]
+    (doseq [a-token  ["paul" "stephanie" "steph" "kyle" "philip" "tom" "sarah" "fred"
+                      "albert" "sebastian" "steve" "smith" "mary" "vince" "bill" "ben"]]
+      (send new-classifier core/learn! a-token :first))
 
+    (doseq [a-token ["santa clara" "lesage" "burton" "smith" "smith" "smith" "shires"
+                     "mead" "sheppard" "smagghe" "p-of-class-given-token-graham"]]
+      (send new-classifier core/learn! a-token :last))
+
+    (await new-classifier)
+    (core/save-classifier-string new-classifier "chicken.txt")
+    (def *persisted-classifier* (core/load-classifier-string "chicken.txt"))
+    (is (= (core/p-of-class-given-token *persisted-classifier* "paul")
+           {:first 1.0, :last 0.0}))
+
+    (pp/pprint (core/p-of-class-given-token *persisted-classifier* "smith"))
+
+    (is (= (core/p-of-class-given-token *persisted-classifier* "smith")
+           {:first 0.25, :last 0.7499999999999999})))
+  (shell/sh "rm" "chicken.txt")
+
+  )
 
 (comment
 

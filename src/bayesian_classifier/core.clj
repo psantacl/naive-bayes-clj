@@ -19,6 +19,7 @@
 
         :else
         st))
+
 (comment
  (get-state (agent 69))
  (get-state (atom 69))
@@ -179,7 +180,7 @@
 (defn save-classifier-string [classifier file-name]
   (ds/with-out-writer file-name
     (binding [*print-dup* true]
-      (print classifier))))
+      (print (get-state classifier)))))
 
 
 (defn load-classifier-string [file-name]
@@ -191,7 +192,6 @@
   (def *persisted-classifier* (load-classifier "chicken.txt"))
   (pp/pprint *persisted-classifier*)
   )
-
 
 (comment
   (p-of-class-given-token chicken "steph")
