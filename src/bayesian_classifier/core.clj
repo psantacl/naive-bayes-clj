@@ -1,88 +1,95 @@
-(ns bayesian-classifier.core
-    (:require [clojure.contrib.duck-streams :as ds]
-              [clojure.contrib.pprint :as pp]))
+(ns bayesian-classifier.core2
+  (:require [clojure.contrib.duck-streams :as ds]
+            [clojure.contrib.pprint :as pp]))
 
-
-(defn make-classifier [ & klasses]
-  (agent {:observations 0
-          :classes (reduce
-                    (fn [accum k]
-                      (assoc accum k { :observations 0 :tokens {} }))
-                    {}
-                    klasses)}))
+(defn make-classifier [& klasses]
+  {:observations 0
+   :classes (reduce
+             (fn [accum k]
+               (assoc accum k { :observations 0 :tokens {} }))
+             {}
+             klasses)})
 
 (comment
-  (def *name-addr-classifier* (make-classifier :name :address))
+  (def *first-last-name-classifier* (atom (make-classifier :first :last)))
+  (def *first-last-name-classifier* (make-classifier :first :last))
+  (pp/pprint *first-last-name-classifier*)
   )
 
 
+(defn base-learn [st token klass]
+  (merge  (update-in (update-in st [:classes klass :tokens]
+                                (fn [m c] (assoc m token (+ 1 c)))
+                                (get-in st [:classes klass :tokens token] 0))
+                     [:classes klass]
+                     (fn [m c] (assoc m :observations (+ 1 c)))
+                     (get-in st [:classes klass :observations]))
+
+          {:observations (+ 1 (get st :observations))}))
+
+(defn learn! [st token klass]
+  (if-not (some #(= klass %1) (keys (get st :classes)))
+    (throw (RuntimeException. (format "Class/Concept %s not found in classifer"
+                                      klass)))
+    (base-learn st token klass)))
+
 (defn learn [st token klass]
-  (let [modify-klass
-        (fn [token klass]
-          (let [target-klass (get-in st [:classes klass])]
-            {klass {:observations
-                    (+ 1 (get target-klass :observations))
-                    :tokens
-                    (assoc (get target-klass :tokens) token
-                           (+ 1 (get-in target-klass [:tokens token] 0)))}}))
-        add-token-to-klass
-        (fn [token klass]
-          (let [old-klasses (reduce (fn [accum k]
-                                      (assoc accum k (get-in st [:classes k])))
-                                    {}
-                                    (filter (fn [some-key] (not (= some-key klass)))
-                                            (keys (:classes st))))]
-            (merge old-klasses
-                   (modify-klass token klass))))]
-
-    {:observations (+ 1 (get st :observations))
-     :classes (add-token-to-klass token klass)}
-    ))
-
+  (if-not (some #(= klass %1) (keys (get st :classes)))
+    (base-learn (update-in st [:classes]
+                           (fn [m] (assoc m klass { :observations 0 :tokens {} })))
+                token klass)
+    (base-learn st token klass)))
 
 (comment
   (doseq [a-token  ["paul" "stephanie" "steph" "kyle" "philip" "tom" "sarah" "fred"
-                    "albert" "sebastian" "steve" "road" "mary" "vince" "bill" "ben"]]
-    (printf "learning about %s\n" a-token )
-    (send *name-addr-classifier* learn a-token :name))
+                     "albert" "sebastian" "steve" "smith" "mary" "vince" "bill" "ben"]]
+          (reset! *first-last-name-classifier*
+                  (learn! @*first-last-name-classifier* a-token :first)))
 
-  (doseq [a-token  ["street" "road" "lane" "st" "rd" "usa" "philadelphia"]]
-    (printf "learning about %s\n" a-token )
-    (send *name-addr-classifier* learn a-token :address))
+  (doseq [a-token  ["paul" "stephanie" "steph" "kyle" "philip" "tom" "sarah" "fred"
+                    "albert" "sebastian" "steve" "smith" "mary" "vince" "bill" "ben"]]
+    (def *first-last-name-classifier*
+         (learn! *first-last-name-classifier* a-token :first)))
 
-  (clear-agent-errors *name-addr-classifier*)
+  (doseq [a-token ["santa clara" "lesage" "burton" "smith" "smith" "smith" "shires"
+                    "mead" "sheppard" "smagghe" "feng"]]
+          (reset! *first-last-name-classifier*
+                  (learn! @*first-last-name-classifier* a-token :last)))
 
-  (send *name-addr-classifier* learn "betty" :fungus)
-  (pp/pprint *name-addr-classifier*)
+  (doseq [a-token ["santa clara" "lesage" "burton" "smith" "smith" "smith" "shires"
+                   "mead" "sheppard" "smagghe" "feng"]]
+    (def *first-last-name-classifier*
+            (learn! *first-last-name-classifier* a-token :last)))
 
+  (pp/pprint *first-last-name-classifier*)
   )
 
 ;;;P(A1), P(A2), ...
 (defn p-of-class [st klass]
-  (let [total-observations (:observations @st)]
+  (let [total-observations (:observations st)]
     (if (zero? total-observations)
       0
-      (float (/ (get-in @st [:classes klass :observations])
+      (double (/ (get-in st [:classes klass :observations])
                 total-observations)))))
 
 (comment
-  (p-of-class *name-addr-classifier* :address)
-  (p-of-class *name-addr-classifier* :name)
+  (p-of-class *first-last-name-classifier* :address)
+  (p-of-class *first-last-name-classifier* :name)
 
   )
 
 ;;;P(B1|A1), P(B2|A1), ...
 (defn p-of-token-given-class [st token class]
-  (let [token-count        (get-in @st [:classes class :tokens token] 0)
-        class-observations (get-in @st [:classes class :observations]) ]
+  (let [token-count        (get-in st [:classes class :tokens token] 0)
+        class-observations (get-in st [:classes class :observations]) ]
     (if (zero? class-observations)
       0
-      (float (/ token-count class-observations)))))
+      (double (/ token-count class-observations)))))
 
 (comment
-  (p-of-token-given-class *name-addr-classifier* "paul" :name)
-  (p-of-token-given-class *name-addr-classifier* "paul" :address)
-  (p-of-token-given-class *name-addr-classifier* "street" :address)
+  (p-of-token-given-class *first-last-name-classifier* "paul" :name)
+  (p-of-token-given-class *first-last-name-classifier* "paul" :address)
+  (p-of-token-given-class *first-last-name-classifier* "street" :address)
 
   )
 
@@ -92,14 +99,14 @@
      (reduce (fn [accum k]
                (+ accum (p-of-token-given-class st token k)))
              0
-             (keys (:classes @st))))
+             (keys (:classes st))))
 
 
 (comment
-  (keys (:classes @*name-addr-classifier*))
-  (p-of-token-given-class *name-addr-classifier* "paul" :address)
-  (p-of-token-given-class *name-addr-classifier* "paul" :name)
-  (p-of-token-given-class-sum *name-addr-classifier* "paul")
+  (keys (:classes *first-last-name-classifier*))
+  (p-of-token-given-class *first-last-name-classifier* "paul" :address)
+  (p-of-token-given-class *first-last-name-classifier* "paul" :name)
+  (p-of-token-given-class-sum *first-last-name-classifier* "paul")
 
   )
 
@@ -109,8 +116,8 @@
      (p-of-token-given-class st token klass)))
 
 (comment
-  (p-of-class-and-token *name-addr-classifier* "paul" :name)
-  (p-of-class-and-token *name-addr-classifier* "paul" :address)
+  (p-of-class-and-token *first-last-name-classifier* "paul" :name)
+  (p-of-class-and-token *first-last-name-classifier* "paul" :address)
 )
 
 ;;;P(B)
@@ -119,18 +126,18 @@
             (+ accum
                (p-of-class-and-token st token klass)))
           0
-            (keys (:classes @st))))
+            (keys (:classes st))))
 
 (comment
-  (total-p-of-token *name-addr-classifier* "steph")
-  (total-p-of-token *name-addr-classifier* "paul")
+  (total-p-of-token *first-last-name-classifier* "steph")
+  (total-p-of-token *first-last-name-classifier* "paul")
 
   )
 
 ;;;P(A|B) = [ P(B|A) * P(A) ]/P(B)
 (defn p-of-class-given-token [st token]
   (loop [res {}
-         [klass & klasses] (keys (:classes @st))]
+         [klass & klasses] (keys (:classes st))]
     (if-not klass
       res
       (let [numer (p-of-class-and-token st token klass)
@@ -143,7 +150,7 @@
 
 (defn p-of-class-given-token-graham [st token]
   (loop [res {}
-         [klass & klasses] (keys (:classes @st))]
+         [klass & klasses] (keys (:classes st))]
     (if-not klass
       res
       (let [numer (p-of-token-given-class st token klass)
@@ -155,32 +162,37 @@
                klasses)))))
 
 
-(defn save-classifier [classifier file-name]
+(defn save-classifier-string [classifier file-name]
   (ds/with-out-writer file-name
     (binding [*print-dup* true]
-      (print @classifier))))
+      (print classifier))))
 
 
-(defn load-classifier [file-name]
-  (agent (load-file file-name)))
+(defn load-classifier-string [file-name]
+  (load-file file-name))
+
 
 (comment
-  (save-classifier *name-addr-classifier* "chicken.txt")
+  (save-classifier *first-last-name-classifier*  "chicken.txt")
   (def *persisted-classifier* (load-classifier "chicken.txt"))
-  (p-of-class-given-token *persisted-classifier* "steph")
+  (pp/pprint *persisted-classifier*)
   )
+
 
 (comment
   (p-of-class-given-token chicken "steph")
-  (p-of-class-given-token *name-addr-classifier* "steph")
-  (p-of-class-given-token *name-addr-classifier* "paul")
-  (p-of-class-given-token *name-addr-classifier* "huge")
-  (p-of-class-given-token *name-addr-classifier* "philip")
-  (p-of-class-given-token *name-addr-classifier* "road")
+  (p-of-class-given-token *first-last-name-classifier* "steph")
+  (p-of-class-given-token *first-last-name-classifier* "paul")
 
-  (p-of-class-given-token-graham *name-addr-classifier* "paul")
-  (p-of-class-given-token-graham *name-addr-classifier* "road")
+  (p-of-class-given-token *first-last-name-classifier* "philip")
+  (p-of-class-given-token *first-last-name-classifier* "smith")
 
-  (pp/pprint *name-addr-classifier*)
-  (clear-agent-errors *name-addr-classifier*)
+
+  (p-of-class-given-token-graham *first-last-name-classifier* "paul")
+  (p-of-class-given-token-graham *first-last-name-classifier* "smith")
+
+
+  (pp/pprint *first-last-name-classifier*)
+  (clear-agent-errors *first-last-name-classifier*)
+
   )
