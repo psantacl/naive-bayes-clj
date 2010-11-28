@@ -10,21 +10,21 @@
              {}
              klasses)})
 
-(defn get-state [st]
-  (cond (= (class st) clojure.lang.Agent)
-        @st
+(defprotocol Classifier
+  (get-state [this]  this))
 
-        (= (class st) clojure.lang.Atom)
-        @st
+(extend-type java.lang.Object
+             Classifier
+             (get-state [this] this))
 
-        :else
-        st))
+(extend-type clojure.lang.Agent
+             Classifier
+             (get-state [this] @this))
 
-(comment
- (get-state (agent 69))
- (get-state (atom 69))
- (get-state 69)
- )
+(extend-type clojure.lang.Atom
+             Classifier
+             (get-state [this] @this))
+
 
 (comment
   (def *first-last-name-classifier* (atom (make-classifier :first :last)))
