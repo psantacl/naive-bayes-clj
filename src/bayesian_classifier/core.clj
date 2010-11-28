@@ -3,6 +3,7 @@
             [clojure.contrib.pprint :as pp]))
 
 (defn make-classifier [& klasses]
+  #^{ :doc "Accepts N keywords as classes/concepts and returns a classifier map" }
   {:observations 0
    :classes (reduce
              (fn [accum k]
@@ -33,7 +34,8 @@
   )
 
 
-(defn base-learn [st token klass]
+(defn- base-learn [st token klass]
+  #{ :doc "basic learn function.  Called by learn and learn!."}
   (merge  (update-in (update-in st [:classes klass :tokens]
                                 (fn [m c] (assoc m token (inc c)))
                                 (get-in st [:classes klass :tokens token] 0))
@@ -43,12 +45,16 @@
           {:observations (inc (get st :observations))}))
 
 (defn learn! [st token klass]
+  #^{ :doc "Accepts a classifier(map, agent or atom) a token and the token's class.  Will throw an exception of the parameterized
+            class is not founded in the classifer. Returns the newly trained classifier." }
   (if-not (some #(= klass %1) (keys (get st :classes)))
     (throw (RuntimeException. (format "Class/Concept %s not found in classifer"
                                       klass)))
     (base-learn st token klass)))
 
 (defn learn [st token klass]
+  #^{ :doc "Accepts a classifier(map, agent or atom) a token and the token's class. If the given class is not found, it will be added
+            to the classifier.  Returns the newly trained classifier." }
   (if-not (some #(= klass %1) (keys (get st :classes)))
     (base-learn (update-in st [:classes]
                            (fn [m] (assoc m klass { :observations 0 :tokens {} })))
@@ -81,6 +87,7 @@
 
 ;;;P(A1), P(A2), ...
 (defn p-of-class [st klass]
+  #^{ :doc "Given a classifier and a class/concept, returns the aprior probability of that class. P(A1), P(A2), ..." }
   (let [total-observations (:observations (get-state st))]
     (if (zero? total-observations)
       0
@@ -95,6 +102,7 @@
 
 ;;;P(B1|A1), P(B2|A1), ...
 (defn p-of-token-given-class [st token class]
+  #^{ :doc "Given a classifier, a token and it's class, returns the probability of that token given the class.  P(B1|A1), P(B2|A1), ... " }
   (let [token-count        (get-in (get-state st) [:classes class :tokens token] 0)
         class-observations (get-in (get-state st) [:classes class :observations]) ]
     (if (zero? class-observations)
@@ -111,6 +119,9 @@
 ;;;P(B1|A) = P(B1|A1) + P(B1|A2) + ...
 ;;;From Graham - ignores prior probablities of class or concept
 (defn  p-of-token-given-class-sum [st token]
+  #^{ :doc "Given a classifier and a token, calculates the total probability of that token across all classes.
+            P(B1|A) = P(B1|A1) + P(B1|A2) + ...
+            From Graham - ignores prior probablities of class or concept " }
      (reduce (fn [accum k]
                (+ accum (p-of-token-given-class st token k)))
              0
@@ -127,6 +138,7 @@
 
 ;;;P(A1 && B1 ), P(A1 && B2), ...
 (defn p-of-class-and-token [st token klass]
+  #^{ :doc "Given a classifier, a token and a class/concept, returns the probabilty of a token and a class.  P(A1 && B1 ), P(A1 && B2), ... " }
   (* (p-of-class st klass)
      (p-of-token-given-class st token klass)))
 
@@ -137,11 +149,12 @@
 
 ;;;P(B)
 (defn total-p-of-token [st token]
-  (reduce (fn [accum klass]
-            (+ accum
-               (p-of-class-and-token st token klass)))
-          0
-            (keys (:classes (get-state st)))))
+  #^{ :doc "Given a classifier and a token, returns the total probability of that token across all classes/concepts. P(B)" }
+     (reduce (fn [accum klass]
+               (+ accum
+                  (p-of-class-and-token st token klass)))
+             0
+             (keys (:classes (get-state st)))))
 
 (comment
   (total-p-of-token *first-last-name-classifier* "steph")
@@ -151,6 +164,7 @@
 
 ;;;P(A|B) = [ P(B|A) * P(A) ]/P(B)
 (defn p-of-class-given-token [st token]
+  #^{ :doc "Given a classifier and a token, returns the probability of that token given that class given the token. P(A|B) = [ P(B|A) * P(A) ]/P(B)" }
   (loop [res {}
          [klass & klasses] (keys (:classes (get-state st)))]
     (if-not klass
@@ -164,6 +178,8 @@
                klasses)))))
 
 (defn p-of-class-given-token-graham [st token]
+  #^{ :doc "Given a classifier and a token, returns the probability of that token given that class given the token. Using Paul Graham's approached
+            outlined in a plan for spam.  Ignores aprior probabilities of classes/concepts" }
   (loop [res {}
          [klass & klasses] (keys (:classes (get-state st)))]
     (if-not klass
@@ -178,12 +194,14 @@
 
 
 (defn save-classifier-string [classifier file-name]
+  #^{ :doc "Persists the classifier into a character file" }
   (ds/with-out-writer file-name
     (binding [*print-dup* true]
       (print (get-state classifier)))))
 
 
 (defn load-classifier-string [file-name]
+  #^{ :doc "Loads a persisted classifier in a character file" }
   (load-file file-name))
 
 
